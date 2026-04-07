@@ -1,10 +1,16 @@
 import { Effect, pipe, Schema } from "effect"
-import Anthropic from "@anthropic-ai/sdk"
+
 import { AiAnalysisError } from "@jackson-ventures/shared"
+
 import {
   RESEARCH_SYSTEM_PROMPT,
   buildResearchUserPrompt,
 } from "../prompts/research-prompt"
+import type { OpenRouterClient } from "../openrouter-client"
+import { sanitizeJsonResponse } from "../sanitize-json"
+
+const MODEL =
+  process.env.OPENROUTER_MODEL ?? "nvidia/nemotron-3-super-120b-a12b:free"
 
 const ResearchOutput = Schema.Struct({
   description: Schema.String,
@@ -18,7 +24,7 @@ export interface EnrichedCompanyData {
 }
 
 export const enrichCompany = (
-  client: Anthropic,
+  client: OpenRouterClient,
   input: {
     companyName: string
     description: string | null
@@ -34,27 +40,25 @@ export const enrichCompany = (
   }
 
   return pipe(
-    Effect.tryPromise({
-      try: () =>
-        client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 300,
-          system: RESEARCH_SYSTEM_PROMPT,
-          messages: [
-            { role: "user", content: buildResearchUserPrompt(input) },
-          ],
-        }),
-      catch: (cause) =>
+    client.chatCompletion({
+      model: MODEL,
+      max_tokens: 300,
+      messages: [
+        { role: "system", content: RESEARCH_SYSTEM_PROMPT },
+        { role: "user", content: buildResearchUserPrompt(input) },
+      ],
+    }),
+    Effect.mapError(
+      (cause) =>
         new AiAnalysisError({
           companyName: input.companyName,
           cause,
         }),
-    }),
-    Effect.flatMap((response) => {
-      const text =
-        response.content[0]?.type === "text" ? response.content[0].text : ""
+    ),
+    Effect.flatMap((text) => {
+      const sanitized = sanitizeJsonResponse(text)
       return pipe(
-        Effect.try(() => JSON.parse(text)),
+        Effect.try(() => JSON.parse(sanitized)),
         Effect.flatMap(Schema.decodeUnknown(ResearchOutput)),
         Effect.map((parsed) => ({
           companyName: input.companyName,

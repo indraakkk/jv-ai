@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect, pipe, Schema } from "effect"
 import { AiAnalysisError, AiAnalysisOutput } from "@jackson-ventures/shared"
 
+import type { OpenRouterClient } from "../openrouter-client"
 import {
   ANALYSIS_SYSTEM_PROMPT,
   buildAnalysisUserPrompt,
@@ -159,7 +160,7 @@ describe("AiAnalysisOutput schema parsing", () => {
 })
 
 // ---------------------------------------------------------------------------
-// analyzeCompany with mocked Anthropic client
+// analyzeCompany with mocked OpenRouter client
 // ---------------------------------------------------------------------------
 describe("analyzeCompany", () => {
   const validAnalysis = {
@@ -171,14 +172,9 @@ describe("analyzeCompany", () => {
       "A development team could deploy and preview pull requests automatically.",
   }
 
-  const createMockClient = (responseText: string) =>
-    ({
-      messages: {
-        create: async () => ({
-          content: [{ type: "text" as const, text: responseText }],
-        }),
-      },
-    }) as unknown as import("@anthropic-ai/sdk").default
+  const createMockClient = (responseText: string): OpenRouterClient => ({
+    chatCompletion: () => Effect.succeed(responseText),
+  })
 
   test("returns parsed analysis for valid JSON response", async () => {
     const mockClient = createMockClient(JSON.stringify(validAnalysis))
@@ -218,7 +214,7 @@ describe("analyzeCompany", () => {
       }),
     )
 
-    // After 2 retries it should fail
+    // After 3 retries it should fail
     expect(result._tag).toBe("Failure")
   })
 
@@ -243,13 +239,9 @@ describe("analyzeCompany", () => {
   })
 
   test("fails when API call throws", async () => {
-    const errorClient = {
-      messages: {
-        create: async () => {
-          throw new Error("API rate limited")
-        },
-      },
-    } as unknown as import("@anthropic-ai/sdk").default
+    const errorClient: OpenRouterClient = {
+      chatCompletion: () => Effect.fail(new Error("API rate limited")),
+    }
 
     const result = await Effect.runPromiseExit(
       analyzeCompany(errorClient, {
@@ -262,14 +254,10 @@ describe("analyzeCompany", () => {
     expect(result._tag).toBe("Failure")
   })
 
-  test("handles empty content array from API", async () => {
-    const emptyClient = {
-      messages: {
-        create: async () => ({
-          content: [],
-        }),
-      },
-    } as unknown as import("@anthropic-ai/sdk").default
+  test("handles empty response from API", async () => {
+    const emptyClient: OpenRouterClient = {
+      chatCompletion: () => Effect.succeed(""),
+    }
 
     const result = await Effect.runPromiseExit(
       analyzeCompany(emptyClient, {

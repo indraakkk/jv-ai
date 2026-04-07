@@ -11,7 +11,7 @@ An AI-powered company research agent system built for the Jackson Ventures hirin
 | Framework | Effect-TS (async, errors, DI, HTTP server) |
 | HTTP Server | `@effect/platform` + `@effect/platform-bun` |
 | Database | PostgreSQL 16 (docker-compose) + Drizzle ORM |
-| AI/LLM | Anthropic Claude API (`@anthropic-ai/sdk`) |
+| AI/LLM | OpenRouter API (free LLM models) |
 | Orchestration | claude-orchestration-template (multi-agent) |
 
 ## Quick Start
@@ -24,7 +24,7 @@ bun install
 
 # 2. Set up environment
 cp .env.example .env
-# Edit .env with your ANTHROPIC_API_KEY
+# Edit .env with your OPENROUTER_API_KEY
 
 # 3. Start PostgreSQL
 docker-compose up -d
@@ -34,11 +34,11 @@ bun --filter @jackson-ventures/db drizzle:generate
 bun --filter @jackson-ventures/db drizzle:migrate
 
 # 5. Start the API server
-bun --filter @jackson-ventures/api dev
+bun run --watch services/api/src/index.ts
 # Server runs on http://localhost:3000
 
 # 6. (Optional) Start the web UI
-bun --filter @jackson-ventures/web dev
+bun run --watch services/web/src/server.ts
 # Web UI runs on http://localhost:3001
 
 # 7. Run the pipeline to collect and analyze companies
@@ -102,7 +102,9 @@ Claude's response is parsed using `Effect.Schema.decodeUnknown()` which validate
 ### Caching
 AI responses are cached in the `raw_ai_response` column. Companies with `analysis_status: 'completed'` are skipped on re-analysis, avoiding redundant API calls.
 
-## API Endpoints
+## Usage
+
+### API
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -112,22 +114,147 @@ AI responses are cached in the `raw_ai_response` column. Companies with `analysi
 | `POST` | `/pipeline/run` | Trigger collection + analysis pipeline |
 | `POST` | `/pipeline/analyze-pending` | Re-analyze companies with `pending` status |
 
-### Pipeline Request Body
-```json
-{
-  "source": "seed",  // "seed" | "github" | "all"
-  "count": 15
-}
+#### Examples
+
+Run the pipeline to collect and analyze companies:
+
+```bash
+curl -X POST http://localhost:3000/pipeline/run \
+  -H 'Content-Type: application/json' \
+  -d '{"source":"seed","count":15}'
 ```
 
-### Pipeline Response
 ```json
 {
   "collected": 15,
+  "alreadyCompleted": 0,
   "analyzed": 14,
   "failed": 1
 }
 ```
+
+List companies filtered by industry:
+
+```bash
+curl 'http://localhost:3000/companies?industry=AI/ML&limit=2'
+```
+
+```json
+[
+  {
+    "id": "01970...",
+    "companyName": "Acme AI",
+    "website": "https://acme.ai",
+    "industry": "AI/ML",
+    "businessModel": "B2B",
+    "summary": "AI-powered workflow automation for enterprises.",
+    "useCase": "Automating repetitive back-office tasks using LLMs.",
+    "analysisStatus": "completed"
+  }
+]
+```
+
+Get a single company by ID:
+
+```bash
+curl http://localhost:3000/companies/<uuid>
+```
+
+Re-analyze all pending companies:
+
+```bash
+curl -X POST http://localhost:3000/pipeline/analyze-pending
+```
+
+```json
+{ "analyzed": 3 }
+```
+
+#### Error Responses
+
+| Status | Error | Example |
+|--------|-------|---------|
+| 400 | Validation Error | `{ "error": "Validation Error", "message": "..." }` |
+| 404 | Not Found | `{ "error": "Not Found", "message": "Company with id ... not found" }` |
+| 500 | Database Error | `{ "error": "Database Error", "message": "..." }` |
+| 502 | AI/Collection Error | `{ "error": "AI Analysis Error", "message": "..." }` |
+
+### Web UI
+
+```bash
+bun run --watch services/web/src/server.ts
+# Runs on http://localhost:3001
+```
+
+The web UI proxies all `/api/*` requests to the API service (`API_URL` env var, defaults to `http://localhost:3000`).
+
+**Features:**
+- Company table with columns: Company, Industry, Business Model, Summary, Use Case, Status
+- Industry filter dropdown (FinTech, HealthTech, Developer Tools, AI/ML, etc.)
+- Text search with 300ms debounce
+- "Run Pipeline" button — triggers `POST /api/pipeline/run` with seed data
+
+No build step required. Single HTML page served by a minimal Bun HTTP server.
+
+### MCP Server
+
+The MCP server exposes the research pipeline as tools callable from any MCP-compatible client (Claude Code, Claude Desktop, etc.) via stdio transport.
+
+#### Tools
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `research-company` | `companyName` (required), `website?`, `description?` | Inserts company, runs enrichment + analysis, returns structured result |
+| `list-companies` | `industry?`, `search?` | Lists all companies, optionally filtered |
+| `get-company` | `id` (required, UUID) | Returns a single company by ID |
+
+Requires `DATABASE_URL` and `OPENROUTER_API_KEY` environment variables.
+
+#### Claude Code
+
+The project includes an `mcp.json` at the repo root:
+
+```json
+{
+  "mcpServers": {
+    "jackson-ventures": {
+      "type": "stdio",
+      "command": "bun",
+      "args": ["run", "packages/mcp-server/src/index.ts"],
+      "env": {}
+    }
+  }
+}
+```
+
+Claude Code picks this up automatically. The server inherits env vars from the project's `.env`.
+
+A custom slash command is also available:
+
+```
+/research-company Stripe
+```
+
+#### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
+
+```json
+{
+  "mcpServers": {
+    "jackson-ventures": {
+      "command": "bun",
+      "args": ["run", "/absolute/path/to/packages/mcp-server/src/index.ts"],
+      "env": {
+        "DATABASE_URL": "postgresql://jackson:jackson_dev@localhost:5432/jackson_ventures",
+        "OPENROUTER_API_KEY": "sk-or-your-key-here"
+      }
+    }
+  }
+}
+```
+
+Claude Desktop requires absolute paths and explicit env vars since it doesn't inherit the project `.env`.
 
 ## Agentic Tool: Claude Code
 

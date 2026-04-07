@@ -1,16 +1,22 @@
 import { Effect, pipe, Schema } from "effect"
-import Anthropic from "@anthropic-ai/sdk"
+
 import {
   AiAnalysisError,
   AiAnalysisOutput,
 } from "@jackson-ventures/shared"
+
 import {
   ANALYSIS_SYSTEM_PROMPT,
   buildAnalysisUserPrompt,
 } from "../prompts/analysis-prompt"
+import type { OpenRouterClient } from "../openrouter-client"
+import { sanitizeJsonResponse } from "../sanitize-json"
+
+const MODEL =
+  process.env.OPENROUTER_MODEL ?? "nvidia/nemotron-3-super-120b-a12b:free"
 
 export const analyzeCompany = (
-  client: Anthropic,
+  client: OpenRouterClient,
   input: {
     companyName: string
     description: string | null
@@ -19,34 +25,32 @@ export const analyzeCompany = (
   retryCount = 0,
 ): Effect.Effect<{ analysis: AiAnalysisOutput; rawResponse: string }, AiAnalysisError> =>
   pipe(
-    Effect.tryPromise({
-      try: () =>
-        client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 500,
-          system: ANALYSIS_SYSTEM_PROMPT,
-          messages: [
-            { role: "user", content: buildAnalysisUserPrompt(input) },
-          ],
-        }),
-      catch: (cause) =>
-        new AiAnalysisError({ companyName: input.companyName, cause }),
+    client.chatCompletion({
+      model: MODEL,
+      max_tokens: 500,
+      messages: [
+        { role: "system", content: ANALYSIS_SYSTEM_PROMPT },
+        { role: "user", content: buildAnalysisUserPrompt(input) },
+      ],
     }),
-    Effect.flatMap((response) => {
-      const text =
-        response.content[0]?.type === "text" ? response.content[0].text : ""
+    Effect.mapError(
+      (cause) =>
+        new AiAnalysisError({ companyName: input.companyName, cause }),
+    ),
+    Effect.flatMap((text) => {
+      const sanitized = sanitizeJsonResponse(text)
 
       return pipe(
-        Effect.try(() => JSON.parse(text)),
+        Effect.try(() => JSON.parse(sanitized)),
         Effect.flatMap(Schema.decodeUnknown(AiAnalysisOutput)),
         Effect.map((analysis) => ({
           analysis,
-          rawResponse: text,
+          rawResponse: sanitized,
         })),
         Effect.catchAll((parseError) => {
-          if (retryCount < 2) {
+          if (retryCount < 3) {
             console.log(
-              `Parse error for ${input.companyName}, retrying (${retryCount + 1}/2)...`,
+              `Parse error for ${input.companyName}, retrying (${retryCount + 1}/3)...`,
             )
             return analyzeCompany(client, input, retryCount + 1)
           }

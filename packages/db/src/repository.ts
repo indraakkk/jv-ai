@@ -106,6 +106,15 @@ const makeRepository = (db: DrizzleClient) => ({
                 source: d.source ?? "unknown",
               })),
             )
+            .onConflictDoUpdate({
+              target: companies.companyName,
+              set: {
+                description: sql`COALESCE(excluded.description, ${companies.description})`,
+                website: sql`COALESCE(excluded.website, ${companies.website})`,
+                source: sql`COALESCE(excluded.source, ${companies.source})`,
+                updatedAt: new Date(),
+              },
+            })
             .returning()
           return rows
         }),

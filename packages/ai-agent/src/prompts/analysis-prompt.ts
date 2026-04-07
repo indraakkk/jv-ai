@@ -1,7 +1,7 @@
 import { IndustryValues, BusinessModelValues } from "@jackson-ventures/shared"
 
 export const ANALYSIS_SYSTEM_PROMPT = `You are a startup and company analyst. You analyze companies and produce structured assessments.
-You MUST respond with a valid JSON object matching the exact schema provided. No markdown, no code fences, no explanation — just the raw JSON object.
+IMPORTANT: You MUST respond with ONLY a valid JSON object matching the exact schema provided. No markdown code fences, no explanatory text, no prefixes or suffixes — output the raw JSON object and nothing else.
 If information is insufficient, make your best inference based on the company name and website, and note any uncertainty in the summary.`
 
 export const buildAnalysisUserPrompt = (input: {

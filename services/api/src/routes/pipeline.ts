@@ -29,10 +29,14 @@ export const pipelineRoutes = HttpRouter.empty.pipe(
               // Step 2: Store in database
               Effect.flatMap((companies) => repo.insertMany(companies)),
               // Step 3: Analyze each company via AI pipeline
-              Effect.flatMap((inserted) =>
-                pipe(
+              Effect.flatMap((upserted) => {
+                // Only analyze companies that don't already have completed analysis
+                const needsAnalysis = upserted.filter(
+                  (c) => c.analysisStatus !== "completed",
+                )
+                return pipe(
                   Effect.all(
-                    inserted.map((company) =>
+                    needsAnalysis.map((company) =>
                       pipe(
                         repo.updateAnalysisStatus(company.id, "analyzing"),
                         Effect.flatMap(() =>
@@ -64,13 +68,14 @@ export const pipelineRoutes = HttpRouter.empty.pipe(
                     )
                     const failed = results.filter((r: any) => r.error || r.analysisStatus === "failed")
                     return {
-                      collected: inserted.length,
+                      collected: upserted.length,
+                      alreadyCompleted: upserted.length - needsAnalysis.length,
                       analyzed: completed.length,
                       failed: failed.length,
                     }
                   }),
-                ),
-              ),
+                )
+              }),
             ),
           ),
           Effect.map((result) => HttpServerResponse.unsafeJson(result)),

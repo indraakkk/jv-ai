@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, uuid, text, timestamp, pgEnum, uniqueIndex } from "drizzle-orm/pg-core"
 
 export const industryEnum = pgEnum("industry", [
   "FinTech",
@@ -48,7 +48,9 @@ export const companies = pgTable("companies", {
   source: text("source"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-})
+}, (table) => [
+  uniqueIndex("companies_company_name_unique").on(table.companyName),
+])
 
 export type Company = typeof companies.$inferSelect
 export type NewCompany = typeof companies.$inferInsert

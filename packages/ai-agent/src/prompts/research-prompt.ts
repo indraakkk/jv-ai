@@ -1,6 +1,6 @@
 export const RESEARCH_SYSTEM_PROMPT = `You are a startup research assistant. Your job is to enrich sparse company data.
 Given a company name and whatever partial information is available, produce a comprehensive description.
-Respond with a valid JSON object. No markdown, no code fences — just the raw JSON object.`
+IMPORTANT: You MUST respond with ONLY a valid JSON object. No markdown code fences, no explanatory text, no prefixes or suffixes — output the raw JSON object and nothing else.`
 
 export const buildResearchUserPrompt = (input: {
   companyName: string
