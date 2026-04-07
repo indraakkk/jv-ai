@@ -116,6 +116,8 @@ AI responses are cached in the `raw_ai_response` column. Companies with `analysi
 
 #### Examples
 
+![API Example](docs/api.png)
+
 Run the pipeline to collect and analyze companies:
 
 ```bash
@@ -194,6 +196,8 @@ The web UI proxies all `/api/*` requests to the API service (`API_URL` env var, 
 - Text search with 300ms debounce
 - "Run Pipeline" button — triggers `POST /api/pipeline/run` with seed data
 
+![Web UI](docs/web.png)
+
 No build step required. Single HTML page served by a minimal Bun HTTP server.
 
 ### MCP Server
@@ -207,6 +211,8 @@ The MCP server exposes the research pipeline as tools callable from any MCP-comp
 | `research-company` | `companyName` (required), `website?`, `description?` | Inserts company, runs enrichment + analysis, returns structured result |
 | `list-companies` | `industry?`, `search?` | Lists all companies, optionally filtered |
 | `get-company` | `id` (required, UUID) | Returns a single company by ID |
+
+![MCP Server](docs/mcp.png)
 
 Requires `DATABASE_URL` and `OPENROUTER_API_KEY` environment variables.
 
