@@ -1,0 +1,23 @@
+{
+  "name": "@jackson-ventures/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@jackson-ventures/shared": "workspace:*",
+    "@jackson-ventures/db": "workspace:*",
+    "@jackson-ventures/collector": "workspace:*",
+    "@jackson-ventures/ai-agent": "workspace:*",
+    "@effect/platform": "^0.77.0",
+    "@effect/platform-bun": "^0.56.0",
+    "effect": "^3.14.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "bun-types": "^1.2.0"
+  }
+}

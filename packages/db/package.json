@@ -1,0 +1,25 @@
+{
+  "name": "@jackson-ventures/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "drizzle:generate": "bunx drizzle-kit generate",
+    "drizzle:migrate": "bun run src/migrate.ts",
+    "drizzle:studio": "bunx drizzle-kit studio"
+  },
+  "dependencies": {
+    "@jackson-ventures/shared": "workspace:*",
+    "drizzle-orm": "^0.39.0",
+    "postgres": "^3.4.0",
+    "effect": "^3.14.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.0",
+    "typescript": "^5.8.0",
+    "bun-types": "^1.2.0"
+  }
+}

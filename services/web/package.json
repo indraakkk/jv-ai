@@ -1,0 +1,13 @@
+{
+  "name": "@jackson-ventures/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/server.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "bun-types": "^1.2.0"
+  }
+}

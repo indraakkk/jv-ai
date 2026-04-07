@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "types": ["bun-types"],
+    "paths": {
+      "@jackson-ventures/shared": ["./packages/shared/src/index.ts"],
+      "@jackson-ventures/db": ["./packages/db/src/index.ts"],
+      "@jackson-ventures/collector": ["./packages/collector/src/index.ts"],
+      "@jackson-ventures/ai-agent": ["./packages/ai-agent/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "services/*/src/**/*.ts"
+  ]
+}

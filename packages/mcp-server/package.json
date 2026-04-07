@@ -1,0 +1,21 @@
+{
+  "name": "@jackson-ventures/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "jackson-ventures-mcp": "./src/index.ts"
+  },
+  "dependencies": {
+    "@jackson-ventures/shared": "workspace:*",
+    "@jackson-ventures/db": "workspace:*",
+    "@jackson-ventures/collector": "workspace:*",
+    "@jackson-ventures/ai-agent": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "effect": "^3.14.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "bun-types": "^1.2.0"
+  }
+}

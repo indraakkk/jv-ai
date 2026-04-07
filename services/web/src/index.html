@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jackson Ventures — Company Research Agent</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Company Research Agent</h1>
+      <p class="subtitle">AI-powered startup analysis powered by Effect-TS + Claude</p>
+    </header>
+
+    <div class="controls">
+      <div class="filter-group">
+        <label for="industry-filter">Filter by Industry:</label>
+        <select id="industry-filter">
+          <option value="">All Industries</option>
+          <option value="FinTech">FinTech</option>
+          <option value="HealthTech">HealthTech</option>
+          <option value="Developer Tools">Developer Tools</option>
+          <option value="AI/ML">AI/ML</option>
+          <option value="E-Commerce">E-Commerce</option>
+          <option value="EdTech">EdTech</option>
+          <option value="CleanTech">CleanTech</option>
+          <option value="Cybersecurity">Cybersecurity</option>
+          <option value="SaaS Infrastructure">SaaS Infrastructure</option>
+          <option value="Marketplace">Marketplace</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="search-input">Search:</label>
+        <input type="text" id="search-input" placeholder="Search companies...">
+      </div>
+      <button id="run-pipeline" class="btn btn-primary">Run Pipeline (Seed Data)</button>
+    </div>
+
+    <div id="status" class="status hidden"></div>
+
+    <table id="companies-table">
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Industry</th>
+          <th>Business Model</th>
+          <th>Summary</th>
+          <th>Use Case</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="companies-body">
+        <tr><td colspan="6" class="empty">No companies loaded. Click "Run Pipeline" to collect and analyze companies.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const API = '/api';
+    const tbody = document.getElementById('companies-body');
+    const statusEl = document.getElementById('status');
+    const industryFilter = document.getElementById('industry-filter');
+    const searchInput = document.getElementById('search-input');
+    const runBtn = document.getElementById('run-pipeline');
+
+    function showStatus(msg, type = 'info') {
+      statusEl.textContent = msg;
+      statusEl.className = 'status ' + type;
+    }
+
+    async function loadCompanies() {
+      const params = new URLSearchParams();
+      if (industryFilter.value) params.set('industry', industryFilter.value);
+      if (searchInput.value) params.set('search', searchInput.value);
+
+      const res = await fetch(API + '/companies?' + params.toString());
+      const companies = await res.json();
+
+      if (!companies.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No companies found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = companies.map(c => `
+        <tr>
+          <td>
+            <strong>${esc(c.companyName)}</strong>
+            ${c.website ? '<br><a href="' + esc(c.website) + '" target="_blank">' + esc(c.website) + '</a>' : ''}
+          </td>
+          <td><span class="badge">${esc(c.industry || '-')}</span></td>
+          <td><span class="badge">${esc(c.businessModel || '-')}</span></td>
+          <td>${esc(c.summary || '-')}</td>
+          <td>${esc(c.useCase || '-')}</td>
+          <td><span class="status-badge status-${c.analysisStatus}">${esc(c.analysisStatus)}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function runPipeline() {
+      runBtn.disabled = true;
+      showStatus('Running pipeline... collecting and analyzing companies...', 'info');
+      try {
+        const res = await fetch(API + '/pipeline/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: 'seed', count: 15 }),
+        });
+        const result = await res.json();
+        showStatus(
+          'Pipeline complete: ' + result.collected + ' collected, ' +
+          result.analyzed + ' analyzed, ' + result.failed + ' failed',
+          'success'
+        );
+        await loadCompanies();
+      } catch (err) {
+        showStatus('Pipeline error: ' + err.message, 'error');
+      } finally {
+        runBtn.disabled = false;
+      }
+    }
+
+    function esc(s) {
+      if (!s) return '';
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    industryFilter.addEventListener('change', loadCompanies);
+    searchInput.addEventListener('input', debounce(loadCompanies, 300));
+    runBtn.addEventListener('click', runPipeline);
+
+    function debounce(fn, ms) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    loadCompanies();
+  </script>
+</body>
+</html>
