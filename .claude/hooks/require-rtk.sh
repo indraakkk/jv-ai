@@ -45,13 +45,30 @@ check_segment() {
 # Split command on compound operators (; && ||) and check each segment.
 # Pipes are NOT split — only the first command in a pipe needs rtk
 # (since rtk wraps the entire pipeline).
+#
+# Before splitting, neutralise quoted strings and heredocs so that
+# operators inside them are not treated as separators.
+sanitize_command() {
+  local cmd="$1"
+  # Remove heredoc bodies: <<'TAG' ... TAG  and  <<TAG ... TAG
+  cmd=$(printf '%s' "$cmd" | perl -0777 -pe "s/<<-?'?(\w+)'?.*?\n\\1//gs")
+  # Remove double-quoted strings (handling escaped quotes)
+  cmd=$(printf '%s' "$cmd" | perl -pe 's/"([^"\\]|\\.)*"/"_"/g')
+  # Remove single-quoted strings
+  cmd=$(printf '%s' "$cmd" | perl -pe "s/'[^']*'/'_'/g")
+  # Remove $(...) subshells (non-greedy, single level)
+  cmd=$(printf '%s' "$cmd" | perl -pe 's/\$\([^)]*\)/$(_)/g')
+  printf '%s' "$cmd"
+}
+
+SANITIZED=$(sanitize_command "$COMMAND")
 FAILED_SEG=""
 while IFS= read -r segment; do
   if ! check_segment "$segment"; then
     FAILED_SEG="$segment"
     break
   fi
-done < <(echo "$COMMAND" | sed 's/\s*&&\s*/\n/g; s/\s*||\s*/\n/g; s/;\s*/\n/g')
+done < <(printf '%s' "$SANITIZED" | sed 's/\s*&&\s*/\n/g; s/\s*||\s*/\n/g; s/;\s*/\n/g')
 
 # All segments passed
 [[ -z "$FAILED_SEG" ]] && exit 0
