@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "jackson-ventures": {
+      "command": "bun",
+      "args": ["run", "packages/mcp-server/src/index.ts"],
+      "cwd": "/Users/indra/jobhunt/JacksonVentures"
+    },
+    "serena": {
+      "type": "stdio",
+      "command": "serena",
+      "args": [
+        "start-mcp-server",
+        "--context", "claude-code",
+        "--project-from-cwd",
+        "--enable-web-dashboard", "True",
+        "--open-web-dashboard", "True"
+      ],
+      "env": {}
+    }
+  }
+}
